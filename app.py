@@ -1,43 +1,41 @@
 # Tutorial Link - https://towardsdatascience.com/creating-restful-apis-using-flask-and-python-655bad51b24
 
 from flask import Flask, jsonify, request
-from settings import MONGODB_URI
-from pymongo import MongoClient
-from bson import json_util
-from bson import ObjectId
-import certifi
-import json
+from user import get_user_by_id, get_all_users, update_user, delete_user, create_user
 
 app = Flask(__name__)
-client = MongoClient(MONGODB_URI, tlsCAFile=certifi.where())
-
-main_db = client.main
-user_collection = main_db.get_collection("user")
-
-
-def parse_json(data):
-    return json.loads(json_util.dumps(data))
 
 
 @app.route("/", methods=["GET"])
 def main():
-    return jsonify({"message": "Hello from Flask!"})
+    return jsonify({"message": "Hello from Flask!"}), 200
 
 
 @app.route("/user/get_all", methods=["GET"])
-def get_all_users():
-    users = user_collection.find()
-    return jsonify({"users": parse_json(users)})
+def get_all():
+    all_users = get_all_users()
+    return jsonify(all_users), 200
+
+
+@app.route("/user/", methods=["POST"])
+def create_new_user():
+    user_data = request.json
+    result, status_code = create_user(user_data)
+    return jsonify(result), status_code
 
 
 @app.route("/user/<string:user_id>", methods=["GET", "PATCH", "DELETE"])
-def get_user(user_id):
-    user = user_collection.find_one({"_id": ObjectId(user_id)})
-
-    if user is None:
-        return jsonify({"error": "User not found!"}), 404
-
-    return jsonify({"user": parse_json(user)})
+def handle_user(user_id):
+    match request.method:
+        case "GET":
+            user, status_code = get_user_by_id(user_id)
+            return jsonify(user), status_code
+        case "PATCH":
+            result, status_code = update_user(user_id, request.json)
+            return jsonify(result), status_code
+        case "DELETE":
+            result, status_code = delete_user(user_id)
+            return jsonify(result), status_code
 
 
 if __name__ == "__main__":
